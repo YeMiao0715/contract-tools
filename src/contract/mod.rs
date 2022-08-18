@@ -1,9 +1,10 @@
 pub mod erc20;
 
 use thiserror::Error;
-use web3::types::{Address, Bytes, H256, TransactionParameters};
-use crate::engine::Engine;
+use web3::types::{Address, Bytes, H256, TransactionParameters, U256};
+use crate::engine::{Engine};
 use async_trait::async_trait;
+use crate::tx::Tx;
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
@@ -27,8 +28,12 @@ pub trait ContractLiving<T> {
         Ok(self.engine().call_transaction(self.contract().clone(), data).await?)
     }
 
-    async fn send_data(&self, data: Bytes, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn send_data(&self, data: Bytes, private_key: &str) -> Result<(H256, Tx)> {
         Ok(self.engine().send_transaction_by_data(self.contract().clone(), data, private_key).await?)
+    }
+
+    async fn send_data_by_nonce(&self, data: Bytes, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
+        Ok(self.engine().send_transaction_by_data_with_nonce(self.contract().clone(), data, nonce, private_key).await?)
     }
 }
 

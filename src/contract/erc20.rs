@@ -1,9 +1,10 @@
 use web3::types::{Address, Bytes, H256, TransactionParameters, U256};
 use crate::abi::erc20::{Erc20Abi, Erc20ContractAbi};
 use crate::contract::ContractLiving;
-use crate::engine::Engine;
+use crate::engine::{Engine};
 use async_trait::async_trait;
 use crate::contract::Result;
+use crate::tx::Tx;
 
 #[async_trait]
 pub trait Erc20Contract<T: Erc20ContractAbi>: ContractLiving<T> {
@@ -37,9 +38,14 @@ pub trait Erc20Contract<T: Erc20ContractAbi>: ContractLiving<T> {
         Ok(self.abi().decode_balance_of(data)?)
     }
 
-    async fn transfer(&self, to: Address, amount: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn transfer(&self, to: Address, amount: U256, private_key: &str) -> Result<(H256, Tx)> {
         let data = self.abi().transfer(to, amount)?;
         Ok(self.send_data(data, private_key).await?)
+    }
+
+    async fn transfer_by_nonce(&self, to: Address, amount: U256, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
+        let data = self.abi().transfer(to, amount)?;
+        Ok(self.send_data_by_nonce(data, nonce, private_key).await?)
     }
 
     async fn allowance(&self, owner: Address, spender: Address) -> Result<U256> {
@@ -48,24 +54,39 @@ pub trait Erc20Contract<T: Erc20ContractAbi>: ContractLiving<T> {
         Ok(self.abi().decode_allowance(data)?)
     }
 
-    async fn approve(&self, spender: Address, amount: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn approve(&self, spender: Address, amount: U256, private_key: &str) -> Result<(H256, Tx)> {
         let data = self.abi().approve(spender, amount)?;
         Ok(self.send_data(data, private_key).await?)
     }
 
-    async fn transfer_from(&self, from: Address, to: Address, amount: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn transfer_from(&self, from: Address, to: Address, amount: U256, private_key: &str) -> Result<(H256, Tx)> {
         let data = self.abi().transfer_from(from, to, amount)?;
         Ok(self.send_data(data, private_key).await?)
     }
 
-    async fn increase_allowance(&self, spender: Address, added_value: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn transfer_from_by_nonce(&self, from: Address, to: Address, amount: U256, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
+        let data = self.abi().transfer_from(from, to, amount)?;
+        Ok(self.send_data_by_nonce(data, nonce, private_key).await?)
+    }
+
+    async fn increase_allowance(&self, spender: Address, added_value: U256, private_key: &str) -> Result<(H256, Tx)> {
         let data = self.abi().increase_allowance(spender, added_value)?;
         Ok(self.send_data(data, private_key).await?)
     }
 
-    async fn decrease_allowance(&self, spender: Address, subtracted_value: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    async fn increase_allowance_by_nonce(&self, spender: Address, added_value: U256, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
+        let data = self.abi().increase_allowance(spender, added_value)?;
+        Ok(self.send_data_by_nonce(data, nonce, private_key).await?)
+    }
+
+    async fn decrease_allowance(&self, spender: Address, subtracted_value: U256, private_key: &str) -> Result<(H256, Tx)> {
         let data = self.abi().decrease_allowance(spender, subtracted_value)?;
         Ok(self.send_data(data, private_key).await?)
+    }
+
+    async fn decrease_allowance_by_nonce(&self, spender: Address, subtracted_value: U256, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
+        let data = self.abi().decrease_allowance(spender, subtracted_value)?;
+        Ok(self.send_data_by_nonce(data, nonce, private_key).await?)
     }
 }
 

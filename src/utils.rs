@@ -1,11 +1,8 @@
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use serde_json::json;
 use web3::signing::{keccak256};
 use web3::types::{Address, H256, TransactionParameters};
-
-pub trait ToHex {
-    fn to_hex(&self) -> String;
-}
 
 pub trait AddressUtils {
     // 将地址转换为checksum_address
@@ -29,6 +26,10 @@ impl AddressUtils for Address {
         }
         checksum_address
     }
+}
+
+pub trait ToHex {
+    fn to_hex(&self) -> String;
 }
 
 impl ToHex for Address {

@@ -1,12 +1,13 @@
-use std::ops::{Mul};
+use std::ops::{Add, Mul};
 use std::str::FromStr;
 use std::time::Duration;
 use secp256k1::SecretKey;
 use web3::signing::{Key, SecretKeyRef};
 use web3::transports::{Http};
-use web3::types::{Address, H256, U256, U64, Bytes, CallRequest, TransactionParameters, TransactionReceipt};
+use web3::types::{Address, H256, U256, U64, Bytes, CallRequest, TransactionParameters, TransactionReceipt, AccessList, SignedTransaction};
 use thiserror::Error;
 use web3::Web3;
+use crate::tx::Tx;
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
@@ -112,27 +113,34 @@ impl Engine {
         })
     }
 
-    async fn send_transaction(&self, to: Address, value: Option<U256>, data: Option<Bytes>, nonce: Option<U256>, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    fn to_tx(&self, from: Address, tx: TransactionParameters, signed: SignedTransaction) -> Tx {
+        let mut tx = Tx::from_transaction_parameters(tx);
+        tx.set_from(from);
+        tx.set_signed(signed);
+        tx
+    }
+
+    async fn send_transaction(&self, to: Address, value: Option<U256>, data: Option<Bytes>, nonce: Option<U256>, private_key: &str) -> Result<(H256, Tx)> {
         let (from, private_key) = self.parse_private_key_to_address(private_key)?;
         let tx = self.make_transaction(from, to, value, data, nonce).await?;
         let signed = self.web3.accounts().sign_transaction(tx.clone(), &private_key).await?;
-        let result = self.web3.eth().send_raw_transaction(signed.raw_transaction).await?;
-        Ok((result, tx))
+        let result = self.web3.eth().send_raw_transaction(signed.clone().raw_transaction).await?;
+        Ok((result, self.to_tx(from, tx, signed)))
     }
 
-    pub async fn send_transaction_by_value(&self, to: Address, value: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    pub async fn send_transaction_by_value(&self, to: Address, value: U256, private_key: &str) -> Result<(H256, Tx)> {
         self.send_transaction(to, Some(value), None, None, private_key).await
     }
 
-    pub async fn send_transaction_by_value_with_nonce(&self, to: Address, value: U256, nonce: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    pub async fn send_transaction_by_value_with_nonce(&self, to: Address, value: U256, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
         self.send_transaction(to, Some(value), None, Some(nonce), private_key).await
     }
 
-    pub async fn send_transaction_by_data(&self, to: Address, data: Bytes, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    pub async fn send_transaction_by_data(&self, to: Address, data: Bytes, private_key: &str) -> Result<(H256, Tx)> {
         self.send_transaction(to, None, Some(data), None, private_key).await
     }
 
-    pub async fn send_transaction_by_data_with_nonce(&self, to: Address, data: Bytes, nonce: U256, private_key: &str) -> Result<(H256, TransactionParameters)> {
+    pub async fn send_transaction_by_data_with_nonce(&self, to: Address, data: Bytes, nonce: U256, private_key: &str) -> Result<(H256, Tx)> {
         self.send_transaction(to, None, Some(data), Some(nonce), private_key).await
     }
 
@@ -175,6 +183,7 @@ mod tests {
     use secp256k1::{SecretKey};
     use web3::signing::{Key, SecretKeyRef};
     use crate::engine::Engine;
+    use crate::utils::ToHex;
 
     const PRIVATE_KEY: &str = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
@@ -235,7 +244,8 @@ mod tests {
             PRIVATE_KEY
         ).await.unwrap();
 
-        println!("hash is {}",hash.0)
+        println!("hash is {}",hash.0.to_hex());
+        println!("{:?}", hash.1.to_json());
     }
 
     #[tokio::test]
